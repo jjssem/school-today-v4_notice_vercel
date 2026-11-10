@@ -1,0 +1,10 @@
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "framework": null,
+  "buildCommand": "node tools/build-schools.mjs",
+  "outputDirectory": "public",
+  "regions": ["icn1"],
+  "functions": {
+    "api/schools.js": { "includeFiles": "generated/schools.json" }
+  }
+}

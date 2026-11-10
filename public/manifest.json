@@ -1,0 +1,15 @@
+{
+  "name": "우리 학교 오늘",
+  "short_name": "학교 오늘",
+  "description": "가까운 학교의 오늘·내일 급식과 날씨·미세먼지·기상특보",
+  "lang": "ko",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#fdf8ef",
+  "theme_color": "#fdf8ef",
+  "icons": [
+    { "src": "/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "/icon-maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}

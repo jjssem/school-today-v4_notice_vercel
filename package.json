@@ -1,0 +1,13 @@
+{
+  "name": "school-today",
+  "version": "4.1.0",
+  "private": true,
+  "description": "우리 학교 오늘 — 가까운 학교의 급식·날씨·미세먼지·기상특보",
+  "type": "module",
+  "engines": {
+    "node": "22.x"
+  },
+  "scripts": {
+    "build": "node tools/build-schools.mjs"
+  }
+}

@@ -1,0 +1,93 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>기상특보·미세먼지 확인</title>
+<style>
+  :root{ --bg:#fdf8ef; --card:#fff; --ink:#2b2a27; --muted:#7a756b; --line:#efe6d6; --accent:#e8743b; }
+  @media (prefers-color-scheme: dark){ :root{ --bg:#1d1c1a; --card:#2a2826; --ink:#f2eee6; --muted:#a8a194; --line:#3a3733; --accent:#f08a54; } }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--ink);font-family:system-ui,sans-serif;word-break:keep-all}
+  .wrap{max-width:860px;margin:0 auto;padding:24px 16px 40px}
+  h1{font-size:24px;margin:0 0 4px}
+  .sub{color:var(--muted);font-size:14px;margin-bottom:16px}
+  form{display:flex;gap:8px;margin-bottom:16px}
+  input{flex:1;min-width:0;font:inherit;padding:10px 12px;border-radius:10px;border:2px solid var(--line);background:var(--card);color:var(--ink)}
+  button{font:inherit;border:0;border-radius:10px;padding:0 16px;background:var(--accent);color:#fff;cursor:pointer}
+  .card{background:var(--card);border:1.5px solid var(--line);border-radius:14px;padding:14px 16px;margin-bottom:14px}
+  h2{font-size:17px;margin:0 0 8px}
+  table{width:100%;border-collapse:collapse;font-size:14px}
+  th,td{text-align:left;padding:6px 8px;border-bottom:1px solid var(--line);vertical-align:top}
+  th{color:var(--muted);font-weight:500}
+  .y{color:#1d6b39;font-weight:700} .n{color:var(--muted)}
+  .hit{background:rgba(232,116,59,.12)}
+  pre{white-space:pre-wrap;word-break:break-all;font-size:13px;background:var(--bg);border-radius:8px;padding:10px;margin:0;max-height:360px;overflow:auto}
+  .err{background:#fde8e8;color:#8a1f1f;border-radius:10px;padding:12px;display:none}
+  .big{font-size:18px}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>🚨 기상특보·미세먼지 확인 (점검용)</h1>
+  <div class="sub">기상청 특보 원본과 학교 주소에 해당하는 '학교 생활 관련' 특보, 그리고 미세먼지 측정소·내일 예보 권역이 맞게 잡혔는지 보여 줍니다.</div>
+  <form id="f"><input id="addr" placeholder="학교 주소 (예: 제주특별자치도 제주시 애월읍 엄수로 202-4)"><button>확인</button></form>
+  <div class="err" id="err"></div>
+  <div class="card"><h2>이 학교에 해당하는 특보</h2><div id="active" class="big">—</div><div class="sub" id="tm" style="margin:6px 0 0"></div></div>
+  <div class="card"><h2>미세먼지: 측정소와 내일 예보</h2><div id="dust">—</div></div>
+  <div class="card"><h2>현재 발효 중인 전체 특보 (해석 결과)</h2><div id="all">—</div></div>
+  <div class="card"><h2>원본: 발효 현황 (t6)</h2><pre id="t6">—</pre></div>
+  <div class="card"><h2>원본: 예비특보 (t7)</h2><pre id="t7">—</pre></div>
+  <div class="card"><h2>원본: 응답 전체</h2><pre id="rawAll">—</pre></div>
+</div>
+<script>
+const $ = id => document.getElementById(id);
+const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+let saved = null; try{ saved = JSON.parse(localStorage.getItem("school")); }catch(e){}
+$("addr").value = new URLSearchParams(location.search).get("addr") || saved?.addr || "제주특별자치도 제주시 애월읍 엄수로 202-4";
+
+async function run(){
+  $("err").style.display = "none";
+  try{
+    const res = await fetch("/api/warnings?addr=" + encodeURIComponent($("addr").value.trim()));
+    const d = await res.json();
+    if (!res.ok) throw new Error(d.error || res.status);
+    $("active").innerHTML = d.active.length ? d.active.map(w => `<b>${esc(w.name)}</b>`).join(" · ") : "해당 없음 ✅";
+    $("tm").textContent = d.tmFc ? "기상청 발표 시각: " + d.tmFc : "";
+    const hitNames = new Set(d.active.map(w => w.name));
+    $("all").innerHTML = d.all.length ? `<table><tr><th>특보</th><th>구역</th><th>반영 대상</th><th>이 학교</th></tr>${
+      d.all.map(w => `<tr class="${hitNames.has(w.name) ? "hit" : ""}"><td>${esc(w.name)}</td><td>${esc(w.area)}</td>
+        <td class="${d.relevantKinds.includes(w.kind) ? "y" : "n"}">${d.relevantKinds.includes(w.kind) ? "예" : "제외"}</td>
+        <td class="${hitNames.has(w.name) ? "y" : "n"}">${hitNames.has(w.name) ? "해당" : "-"}</td></tr>`).join("")}</table>`
+      : "발효 중인 특보가 없거나, 원본 형식을 해석하지 못했어요. 아래 원본을 확인해 주세요.";
+    $("t6").textContent = d.raw?.t6 || "(없음)";
+    $("t7").textContent = d.raw?.t7 || "(없음)";
+    $("rawAll").textContent = JSON.stringify(d.raw, null, 2);
+  }catch(e){ $("err").textContent = "⚠️ " + e.message; $("err").style.display = "block"; }
+}
+// 미세먼지: 메인 화면에서 고른 학교(좌표가 저장돼 있음)일 때만 확인할 수 있음
+const G = ["-", "좋음", "보통", "나쁨", "매우나쁨"];
+async function runDust(){
+  const box = $("dust");
+  if (!saved?.lat || $("addr").value.trim() !== saved.addr){
+    box.innerHTML = '<span class="n">메인 화면에서 고른 학교의 주소일 때만 확인할 수 있어요. (메인 화면에서 학교를 고른 뒤 이 페이지를 다시 열어 주세요)</span>'; return;
+  }
+  box.textContent = "불러오는 중…";
+  try{
+    const res = await fetch(`/api/weather?lat=${saved.lat.toFixed(2)}&lon=${saved.lon.toFixed(2)}&sido=${encodeURIComponent(saved.addr)}`);
+    const d = await res.json();
+    if (!res.ok) throw new Error(d.error || res.status);
+    const a = d.air, f = d.dustTomorrow, e = d.errors || {};
+    box.innerHTML = `<table>
+      <tr><th>학교</th><td>${esc(saved.name)} · 기상청 격자 ${d.grid ? d.grid.nx + ", " + d.grid.ny : "-"}</td></tr>
+      <tr><th>가까운 측정소</th><td>${a ? `<b>${esc(a.station)}</b>${a.distKm != null ? " (" + a.distKm + "km)" : " (시·도 목록에서 고름)"} · 미세먼지 ${a.pm10 ?? "-"} (${G[a.grade10]}) · 초미세먼지 ${a.pm25 ?? "-"} (${G[a.grade25]}) · ${esc(a.time || "")}` : `<span class="n">불러오지 못함: ${esc(e.air || "")}</span>`}</td></tr>
+      <tr><th>내일 예보</th><td>${f ? `권역 <b>${esc(f.region)}</b> · 미세먼지 ${G[f.pm10]} · 초미세먼지 ${G[f.pm25]} · ${esc(f.time || "")}` : `<span class="n">${e.dustForecast ? "불러오지 못함: " + esc(e.dustForecast) : "아직 내일 예보가 없어요"}</span>`}</td></tr>
+      ${f?.raw ? Object.entries(f.raw).map(([k, v]) => `<tr><th>원문 ${k === "PM25" ? "초미세먼지" : "미세먼지"}</th><td>${esc(v)}</td></tr>`).join("") : ""}
+    </table>`;
+  }catch(err){ box.innerHTML = `<span class="n">불러오지 못했어요: ${esc(err.message)}</span>`; }
+}
+$("f").addEventListener("submit", e => { e.preventDefault(); run(); runDust(); });
+run(); runDust();
+</script>
+</body>
+</html>

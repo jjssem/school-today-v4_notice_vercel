@@ -1,0 +1,148 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>공지 설정 · 우리 학교 오늘</title>
+<link rel="icon" type="image/png" href="/icon-192.png">
+<style>
+  :root{ --bg:#fdf8ef; --card:#fff; --ink:#2b2a27; --muted:#7a756b; --line:#efe6d6; --accent:#e8743b; --note:#fff3c4; --note-ink:#5c4a00; --note-line:#f0dc8a; }
+  @media (prefers-color-scheme: dark){ :root{ --bg:#1d1c1a; --card:#2a2826; --ink:#f2eee6; --muted:#a8a194; --line:#3a3733; --accent:#f08a54; --note:#4a3f12; --note-ink:#ffe9a0; --note-line:#6b5a1a; } }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--ink);font-family:system-ui,sans-serif;word-break:keep-all;line-height:1.6}
+  .wrap{max-width:760px;margin:0 auto;padding:24px 16px 48px}
+  h1{font-size:24px;margin:0 0 4px}
+  .sub{color:var(--muted);font-size:14px;margin-bottom:16px}
+  .card{background:var(--card);border:1.5px solid var(--line);border-radius:14px;padding:14px 18px;margin-bottom:14px}
+  h2{font-size:17px;margin:0 0 8px}
+  h2 span{display:inline-grid;place-items:center;width:24px;height:24px;border-radius:50%;background:var(--accent);color:#fff;font-size:14px;margin-right:6px}
+  p{margin:0 0 8px}
+  table{border-collapse:collapse;font-size:14px;margin:6px 0 8px;width:100%}
+  th,td{border:1px solid var(--line);padding:5px 9px;text-align:left}
+  th{background:var(--bg);color:var(--muted);font-weight:500}
+  input{width:100%;font:inherit;padding:10px 12px;border-radius:10px;border:2px solid var(--line);background:var(--bg);color:var(--ink)}
+  input:focus{outline:none;border-color:var(--accent)}
+  .btn{font:inherit;border:0;border-radius:10px;padding:9px 16px;background:var(--accent);color:#fff;cursor:pointer;text-decoration:none;display:inline-block}
+  .btn.ghost{background:none;color:var(--accent);border:1.5px solid var(--accent)}
+  .row{display:flex;flex-wrap:wrap;gap:8px;margin-top:10px}
+  .out{font-size:14px;background:var(--bg);border-radius:8px;padding:10px;word-break:break-all;margin-top:10px}
+  .msg{font-size:14px;margin-top:10px}
+  .bad{color:#b3261e} .good{color:#1d6b39}
+  .notice{background:var(--note);color:var(--note-ink);border:2px solid var(--note-line);border-radius:12px;padding:8px 14px;margin-top:8px;display:flex;flex-wrap:wrap;gap:4px 18px}
+  li{margin-bottom:4px}
+  ul{margin:4px 0 0;padding-left:20px;font-size:14px;color:var(--muted)}
+  small{color:var(--muted)}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>📢 공지 설정</h1>
+  <div class="sub">구글 스프레드시트에 공지를 적으면, 그날은 화면의 <b>'내일 급식' 칸이 노란 공지 칸</b>으로 바뀝니다. 공지가 없는 날은 그대로 내일 급식이 나옵니다. 한 번만 연결해 두면, 그다음부터는 휴대폰에서 시트만 고치면 됩니다.</div>
+
+  <div class="card">
+    <h2><span>1</span>구글 스프레드시트 만들기</h2>
+    <p>새 스프레드시트의 <b>첫 번째 시트</b>에 아래처럼 적습니다. A열만 적어도 됩니다.</p>
+    <table>
+      <tr><th>A · 공지 내용</th><th>B · 시작일 (선택)</th><th>C · 종료일 (선택)</th></tr>
+      <tr><td>내일 현장학습, 도시락 준비</td><td>2026-11-11</td><td>2026-11-11</td></tr>
+      <tr><td>이번 주 독서 주간 📚</td><td></td><td>2026-11-13</td></tr>
+      <tr><td>실내화 꼭 신기</td><td></td><td></td></tr>
+    </table>
+    <ul>
+      <li>날짜를 비우면 계속 표시 · 시작일만 적으면 그날부터 · 종료일만 적으면 그날까지 표시합니다.</li>
+      <li>날짜는 <b>2026-11-11</b> 또는 <b>11/11</b> 처럼 적습니다.</li>
+      <li>공지 한 건은 80자까지, 화면에는 위에서부터 8건까지 나옵니다. 많이 적으면 글자가 조금 작아집니다.</li>
+      <li><b>날짜 없는 공지를 계속 두면 내일 급식이 계속 가려집니다.</b> 되도록 종료일을 적어 주세요. (공지가 있는 날에도 급식 칸의 › 를 누르면 내일 급식을 볼 수 있습니다)</li>
+    </ul>
+  </div>
+
+  <div class="card">
+    <h2><span>2</span>시트 공유 설정</h2>
+    <p>시트 오른쪽 위 <b>공유</b> → 일반 액세스를 <b>링크가 있는 모든 사용자 · 뷰어</b>로 바꾸고 <b>링크 복사</b>를 누릅니다.</p>
+    <ul>
+      <li>링크를 아는 사람은 공지를 읽을 수 있으니, <b>학생 이름이나 개인 사정은 적지 마세요.</b></li>
+      <li>시트를 고칠 수 있는 사람은 구글에서 편집 권한을 준 사람뿐입니다.</li>
+      <li>학교 계정이 외부 공유를 막아 두었다면 개인 구글 계정으로 만들어 주세요.</li>
+    </ul>
+  </div>
+
+  <div class="card">
+    <h2><span>3</span>링크 붙여넣기</h2>
+    <input id="link" placeholder="복사한 구글 시트 링크를 여기에 붙여넣으세요" autocomplete="off">
+    <div class="row"><button class="btn" id="check">확인</button></div>
+    <div class="msg" id="msg"></div>
+    <div id="preview"></div>
+    <div id="result" hidden>
+      <p style="margin-top:14px"><b>이 주소로 열면 공지가 함께 나옵니다.</b> <small>태블릿에서 열어 즐겨찾기(또는 홈 화면에 추가)해 두세요.</small></p>
+      <div class="out" id="url"></div>
+      <div class="row"><button class="btn" id="copy">주소 복사</button><a class="btn ghost" id="open">이 주소로 열기</a></div>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>알아둘 점</h2>
+    <ul>
+      <li>켜 둔 화면은 낮 동안 10분마다 공지를 확인합니다. 시트를 고친 뒤 화면에 나오기까지 <b>최대 15분쯤</b> 걸릴 수 있고, 급하면 화면의 '새로고침'을 누르세요.</li>
+      <li>공지를 끄려면 주소에서 <b>&amp;notice=…</b> 부분을 지우고 열거나, 시트의 내용을 비우면 됩니다.</li>
+      <li>공지는 화면(주소)마다 따로 연결됩니다. 같은 시트를 여러 화면에 연결해도 되고, 교실마다 다른 시트를 써도 됩니다.</li>
+    </ul>
+    <div class="row"><a class="btn ghost" href="/">← 돌아가기</a></div>
+  </div>
+</div>
+<script>
+const $ = id => document.getElementById(id);
+const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const get = k => { try{ return JSON.parse(localStorage.getItem(k)); }catch(e){ return null; } };
+const ymd = d => d.getFullYear()+String(d.getMonth()+1).padStart(2,"0")+String(d.getDate()).padStart(2,"0");
+const school = get("school");
+
+// 링크(또는 ID)에서 시트 ID 꺼내기
+function sheetId(text){
+  const t = text.trim();
+  const m = t.match(/\/spreadsheets\/d\/e\/(2PACX-[\w-]+)/) || t.match(/\/spreadsheets\/d\/([\w-]+)/);
+  const id = m ? m[1] : t;
+  return /^[A-Za-z0-9_-]{25,150}$/.test(id) ? id : "";
+}
+// 지금 쓰던 옵션(nav·awake)은 그대로 두고 notice 만 바꿈
+function dashUrl(id){
+  const q = new URLSearchParams(get("opts") || "");
+  q.delete("notice");
+  const parts = [];
+  if (school?.id) parts.push("s=" + encodeURIComponent(school.id));
+  for (const [k, v] of q) parts.push(k + "=" + v);
+  parts.push("notice=" + id);
+  return location.origin + "/?" + parts.join("&");
+}
+const dateText = n => !n.from && !n.to ? "계속" : n.from === n.to ? `${n.from.slice(4,6)}/${n.from.slice(6)} 하루` : `${n.from ? n.from.slice(4,6) + "/" + n.from.slice(6) : ""}~${n.to ? n.to.slice(4,6) + "/" + n.to.slice(6) : ""}`;
+
+async function check(){
+  const id = sheetId($("link").value);
+  $("result").hidden = true; $("preview").innerHTML = "";
+  if (!id){ $("msg").innerHTML = '<span class="bad">구글 시트 링크를 알아보지 못했어요. 시트의 공유 → 링크 복사로 받은 주소를 붙여넣어 주세요.</span>'; return; }
+  $("msg").textContent = "시트를 읽는 중…";
+  try{
+    const res = await fetch("/api/notice?id=" + id);
+    const d = await res.json();
+    if (!res.ok) throw new Error(d.error || "서버 오류 (" + res.status + ")");
+    const today = ymd(new Date());
+    const on = d.notices.filter(n => (!n.from || n.from <= today) && (!n.to || today <= n.to));
+    $("msg").innerHTML = `<span class="good">✅ 시트를 읽었어요.</span> 공지 ${d.notices.length}건 중 오늘 표시되는 것은 ${on.length}건입니다.`;
+    $("preview").innerHTML = (on.length ? `<div class="notice">${on.slice(0, 8).map(n => `<span>📢 ${esc(n.text)}</span>`).join("")}</div>` : "")
+      + (d.notices.length ? `<table><tr><th>공지</th><th>기간</th><th>오늘</th></tr>${d.notices.map(n => `<tr><td>${esc(n.text)}</td><td>${dateText(n)}</td><td>${on.includes(n) ? "표시" : "-"}</td></tr>`).join("")}</table>` : "");
+    const url = dashUrl(id);
+    $("url").textContent = url; $("open").href = url; $("result").hidden = false;
+    if (!school?.id) $("msg").innerHTML += '<br><span class="bad">아직 학교를 고르지 않았어요. 주소를 연 뒤 학교를 고르면 공지가 함께 나옵니다.</span>';
+  }catch(e){ $("msg").innerHTML = `<span class="bad">⚠️ ${esc(e.message)}</span>`; }
+}
+$("check").onclick = check;
+$("link").addEventListener("keydown", e => { if (e.key === "Enter") check(); });
+$("copy").onclick = async () => {
+  try{ await navigator.clipboard.writeText($("url").textContent); $("copy").textContent = "복사했어요 ✓"; }
+  catch(e){ $("copy").textContent = "주소를 길게 눌러 복사해 주세요"; }
+};
+// 이미 연결된 시트가 있으면 채워 둠
+const cur = new URLSearchParams(get("opts") || "").get("notice");
+if (cur){ $("link").value = cur; check(); }
+</script>
+</body>
+</html>

@@ -1,0 +1,922 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>우리 학교 오늘</title>
+<meta name="description" content="내 위치에서 가까운 학교의 오늘·내일 급식과 날씨·미세먼지">
+<!-- 홈 화면에 추가하면 앱처럼 열림 (주소창 없이). 시작 주소는 추가할 때 보고 있던 주소(?s=학교ID&옵션) 그대로 -->
+<link rel="manifest" href="/manifest.json">
+<meta name="theme-color" content="#fdf8ef" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#1d1c1a" media="(prefers-color-scheme: dark)">
+<link rel="icon" type="image/png" href="/icon-192.png">
+<link rel="apple-touch-icon" href="/apple-touch-icon.png">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="우리 학교 오늘">
+<link href="https://fonts.googleapis.com/css2?family=Gowun+Dodum&family=Jua&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#fdf8ef; --card:#ffffff; --ink:#2b2a27; --muted:#7a756b;
+    --accent:#e8743b; --accent2:#3b8f6b; --line:#efe6d6; --chip:#fff1e3;
+    --hit:#fde3e3; --hit-ink:#b3261e;
+    --note:#fff3c4; --note-ink:#5c4a00; --note-line:#f0dc8a;
+  }
+  @media (prefers-color-scheme: dark){
+    :root{ --bg:#1d1c1a; --card:#2a2826; --ink:#f2eee6; --muted:#a8a194;
+      --accent:#f08a54; --accent2:#5cb38c; --line:#3a3733; --chip:#3a2e24;
+      --hit:#4a2323; --hit-ink:#ffb4ab;
+      --note:#4a3f12; --note-ink:#ffe9a0; --note-line:#6b5a1a; }
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--ink);font-family:"Gowun Dodum",system-ui,sans-serif;min-height:100vh;word-break:keep-all}
+  .wrap{max-width:880px;margin:0 auto;padding:28px 16px 40px}
+  header{text-align:center;margin-bottom:22px}
+  h1{font-family:"Jua",sans-serif;font-weight:400;font-size:clamp(28px,6vw,42px);margin:0;letter-spacing:-.5px}
+  h1 span{color:var(--accent)}
+  .sub{color:var(--muted);margin-top:6px}
+  .link{font:inherit;border:0;background:none;color:var(--accent);cursor:pointer;text-decoration:underline;padding:0}
+  .card{background:var(--card);border:2px solid var(--line);border-radius:22px;padding:20px 22px;box-shadow:0 6px 0 var(--line)}
+  .empty{padding:18px 0;color:var(--muted);font-size:18px;text-align:center}
+  .err{background:#fde8e8;color:#8a1f1f;border-radius:14px;padding:14px;margin-top:16px;display:none}
+  footer{text-align:center;color:var(--muted);font-size:13px;margin-top:24px;line-height:1.6}
+  [hidden]{display:none !important}
+
+  /* ── 학교 고르기 ── */
+  .search{display:flex;gap:8px;margin-bottom:12px}
+  .search input{flex:1;min-width:0;font:inherit;font-size:18px;padding:12px 14px;border-radius:14px;border:2px solid var(--line);
+    background:var(--card);color:var(--ink)}
+  .search input:focus{outline:none;border-color:var(--accent)}
+  .btn{font:inherit;font-size:16px;border:0;border-radius:14px;padding:0 16px;background:var(--accent);color:#fff;cursor:pointer;white-space:nowrap}
+  .chips{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:12px}
+  .chips button{font:inherit;font-size:15px;border:1.5px solid var(--line);background:var(--card);color:var(--ink);border-radius:99px;padding:5px 14px;cursor:pointer}
+  .chips button.on{background:var(--accent);border-color:var(--accent);color:#fff}
+  .where{color:var(--muted);font-size:15px;margin:0 2px 10px}
+  .list{padding:4px 0}
+  .sch{display:flex;align-items:center;gap:12px;width:100%;text-align:left;font:inherit;color:inherit;background:none;border:0;
+    border-bottom:1px dashed var(--line);padding:12px 18px;cursor:pointer}
+  .sch:last-child{border-bottom:0}
+  .sch:hover{background:var(--chip)}
+  .sch .lv{flex:none;width:34px;height:34px;border-radius:10px;display:grid;place-items:center;font-family:"Jua",sans-serif;color:#fff;background:var(--accent)}
+  .sch .lv.m{background:var(--accent2)} .sch .lv.h{background:#5b6fb5}
+  .sch .nm{font-size:19px}
+  .sch .ad{font-size:13px;color:var(--muted);margin-top:2px}
+  .sch .dt{margin-left:auto;flex:none;font-size:14px;color:var(--muted)}
+
+  /* ── 대시보드 ── */
+  .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:16px}
+  .card h2{font-family:"Jua",sans-serif;font-weight:400;font-size:24px;margin:0;display:flex;align-items:baseline;gap:8px}
+  .badge{font-size:14px;background:var(--accent);color:#fff;border-radius:99px;padding:2px 10px}
+  .card.tmr .badge{background:var(--accent2)}
+  .date{color:var(--muted);font-size:15px;margin:4px 0 14px}
+  ul{list-style:none;margin:0;padding:0}
+  li{padding:9px 0;border-bottom:1px dashed var(--line);font-size:20px;display:flex;justify-content:space-between;gap:8px}
+  li:last-child{border-bottom:0}
+  .alg{font-size:12px;color:var(--muted);white-space:nowrap;align-self:center}
+  .kcal{margin-top:12px;font-size:14px;color:var(--muted)}
+  /* 알레르기 강조: 고른 식품이 든 메뉴 줄 (줄 높이는 그대로, 색만) */
+  li.hit{background:var(--hit);box-shadow:-8px 0 0 var(--hit),8px 0 0 var(--hit)}
+  li.hit > span:first-child, .alg b, .next .hitname{color:var(--hit-ink)}
+  .alg b{font-weight:700}
+  .stale{color:var(--hit-ink)}
+  /* 공지 칸 (구글 시트에 적은 문구): 오늘 띄울 공지가 있으면 '내일' 칸이 노란 공지 칸으로 바뀜 */
+  .card.board{--line:var(--note-line);background:var(--note);color:var(--note-ink)}
+  .card.board .badge{background:#c79a00}
+  .card.board .date{color:inherit;opacity:.75}
+  .card.board li{justify-content:flex-start}
+  .modal{position:fixed;inset:0;z-index:10;display:grid;place-items:center;padding:16px;background:rgba(0,0,0,.45);zoom:var(--up,1)}
+  .sheet{width:100%;max-width:460px;max-height:100%;overflow:auto}
+  .sheet h2{margin-bottom:6px}
+  .sheet p{margin:0 0 12px;color:var(--muted);font-size:14px;line-height:1.5}
+  .sheet .chips{margin-bottom:16px}
+  .sheet .actions{display:flex;justify-content:space-between;align-items:center}
+  .sheet .btn{padding:10px 22px}
+  .next{margin-top:10px;background:var(--chip);border-radius:14px;padding:12px 14px;font-size:15px}
+  /* 급식 넘기기 버튼 */
+  .grid .card{position:relative}
+  .pg{position:absolute;top:16px;right:16px;display:flex;gap:6px}
+  .pgb{font-family:"Jua",sans-serif;font-size:22px;line-height:1;min-width:42px;height:38px;padding:0 10px;border-radius:12px;
+    border:2px solid var(--line);background:var(--card);color:var(--ink);cursor:pointer}
+  .pgb:hover:not(:disabled){border-color:var(--accent);color:var(--accent)}
+  .pgb:disabled{opacity:.3;cursor:default}
+  .pgb.home{font-family:"Gowun Dodum",sans-serif;font-size:14px;color:var(--muted)}   /* 눈에 덜 띄게: 테두리만 */
+  body.nonav .pg{display:none}
+  .pg.left{left:16px;right:auto}
+  #today h2, #today .date{padding-left:54px}           /* ‹ 버튼 자리 */
+  body.nonav #today h2, body.nonav #today .date{padding-left:0}
+  .next b{font-family:"Jua",sans-serif;font-weight:400}
+
+  .wx{margin-bottom:16px;display:grid;grid-template-columns:auto 1fr;gap:6px 22px;align-items:center}
+  .wx .big{display:flex;align-items:center;gap:10px}
+  .wx .icon{font-size:56px;line-height:1}
+  .wx .temp{font-family:"Jua",sans-serif;font-size:48px;line-height:1}
+  .wx .temp small{font-size:18px;color:var(--muted);font-family:"Gowun Dodum",sans-serif;display:block;margin-top:4px}
+  .wx .facts{display:flex;flex-wrap:wrap;gap:8px}
+  .pill{background:var(--chip);border-radius:12px;padding:8px 12px;font-size:16px;line-height:1.3}
+  .pill b{font-family:"Jua",sans-serif;font-weight:400;font-size:19px}
+  .g1{background:#dceefe;color:#0b4f8a} .g2{background:#dff3e4;color:#1d6b39}
+  .g3{background:#ffe9c7;color:#8a4b00} .g4{background:#fbd5d5;color:#8a1f1f}
+  .signal{grid-column:1/-1;border-radius:16px;padding:12px 16px;font-size:20px;display:flex;flex-wrap:wrap;gap:6px 14px;align-items:center}
+  .signal b{font-family:"Jua",sans-serif;font-weight:400;font-size:24px}
+  .signal.ok{background:#dff3e4;color:#1d6b39} .signal.caution{background:#ffe9c7;color:#8a4b00} .signal.no{background:#fbd5d5;color:#8a1f1f}
+  .signal .why{font-size:16px}
+  .why-short{display:none}
+  .mm-inline{display:none}
+  /* 3단 배치(800×480 등)일 때만: 빨간 띠에 나온 특보는 신호등 이유에서 뺌 */
+  @media (min-width:700px) and (max-height:520px), (min-width:1400px) and (min-height:861px) and (min-aspect-ratio:16/10){ .why-full{display:none} .why-short{display:inline} }
+  .wx .src{grid-column:1/-1;font-size:12px;color:var(--muted)}
+  /* 기상특보 경보·태풍 띠 */
+  .alert{grid-column:1/-1;background:#c62828;color:#fff;border-radius:14px;padding:10px 16px;font-size:18px;
+    display:flex;flex-wrap:wrap;align-items:baseline;gap:4px 12px}
+  .alert b{font-family:"Jua",sans-serif;font-weight:400;font-size:22px}
+  .alert small{opacity:.85;font-size:13px}
+  /* 내일 날씨 한 줄 */
+  .tmrow{grid-column:1/-1;display:flex;flex-wrap:wrap;align-items:center;gap:6px 16px;border-top:1px dashed var(--line);padding-top:8px;font-size:16px}
+  .tmrow .lbl{font-family:"Jua",sans-serif;font-size:18px;color:var(--accent2)}
+  .tmrow b{font-family:"Jua",sans-serif;font-weight:400;font-size:18px}
+  .tmrow .wet{color:var(--muted);font-size:14px}
+  .tmrow .dust.g3, .tmrow .dust.g4{border-radius:8px;padding:1px 8px}
+  /* 아주 낮은 가로 화면(800×480 라즈베리파이 7인치 등): 왼쪽 날씨 · 가운데 오늘 · 오른쪽 내일 3단 배치
+     교실 TV·전자칠판 같은 큰 가로 화면(1920×1080 등)도 같은 배치를 쓰고, 자동 맞춤이 화면 가득 키움 */
+  @media (min-width:700px) and (max-height:520px), (min-width:1400px) and (min-height:861px) and (min-aspect-ratio:16/10){
+    .wrap{padding:6px 10px 4px;max-width:none}
+    #dashView{display:grid;grid-template-columns:minmax(210px,0.9fr) 1fr 1fr;gap:8px;align-items:stretch}
+    #dashView > header{grid-column:1/-1;margin:0}
+    #dashView .grid{display:contents}
+    #dashView .err{grid-column:1/-1;margin-top:0}
+    h1{font-size:24px}
+    .sub{font-size:12px}
+    .card{padding:8px 12px;border-radius:14px;box-shadow:0 3px 0 var(--line);border-width:1.5px}
+    .wx{margin:0;display:flex;flex-direction:column;align-items:stretch;gap:5px}
+    .wx .big{gap:8px}
+    .wx .icon{font-size:34px}
+    .wx .temp{font-size:32px}
+    .wx .temp small{font-size:12px;margin-top:2px}
+    .wx .facts{gap:5px}
+    .pill{flex:1 1 calc(50% - 5px);padding:4px 8px;font-size:12px;border-radius:10px}
+    .pill b{font-size:15px}
+    .tmrow{flex-wrap:wrap;gap:0 8px;padding-top:5px;font-size:13px;line-height:1.35}
+    .tmrow .wet{flex-basis:100%}
+    .tmrow .lbl{font-size:15px}
+    .tmrow b{font-size:15px}
+    .tmrow .wet{font-size:12px}
+    .signal{flex-direction:column;align-items:flex-start;gap:1px;padding:5px 10px;font-size:14px;border-radius:12px}
+    .alert{padding:5px 10px;font-size:13px;border-radius:10px}
+    .pill.mm, .pill.umb{display:none}          /* 3단: 최저/최고는 기온 아래로, 우산은 '내일' 줄·'지금 비' 칸으로 대신 */
+    .mm-inline{display:inline}
+    .alert b{font-size:16px}
+    .alert small{font-size:10px}
+    .signal b{font-size:17px}
+    .signal .why{font-size:12px}
+    .wx .src{font-size:10px;margin-top:auto}
+    .card h2{font-size:18px}
+    .badge{font-size:11px;padding:1px 8px}
+    .date{margin:1px 0 4px;font-size:12px}
+    li{padding:3px 0;font-size:16px;align-items:center}
+    .alg{font-size:10px;white-space:normal;text-align:right;max-width:48%;line-height:1.2}
+    .kcal{margin-top:4px;font-size:11px}
+    .empty{padding:8px 0;font-size:15px}
+    .next{margin-top:4px;padding:6px 10px;font-size:13px}
+    footer{margin-top:4px;font-size:10px;line-height:1.4}
+    .pg{top:6px;right:8px;gap:4px}
+    .pg.left{left:8px}
+    #today h2, #today .date{padding-left:34px}
+    .pgb{min-width:28px;height:24px;font-size:15px;padding:0 6px;border-radius:8px;border-width:1.5px}
+    .pgb.home{font-size:11px}
+  }
+
+  /* 자동 맞춤: 내용이 화면보다 길면 JS가 --fit 값을 줄이고, 큰 화면에서는 키움 */
+  .wrap{zoom:var(--fit,1)}
+  @media (max-width:520px){ .wx{grid-template-columns:1fr} }
+
+  /* 낮은 가로 화면(1024×768 태블릿·모니터)에서는 한 화면에 들어오도록 촘촘하게.
+     큰 가로 화면(세로 860px 초과)도 같은 배치를 쓰고, 자동 맞춤이 화면에 맞게 키움 */
+  @media (min-width:700px) and (max-height:860px), (min-width:1000px) and (min-height:861px) and (min-aspect-ratio:1/1){
+    .wrap{padding:10px 16px 8px;max-width:980px}
+    header{margin-bottom:8px;display:flex;justify-content:center;align-items:baseline;gap:12px;flex-wrap:wrap}
+    h1{font-size:30px}
+    .sub{margin-top:0;font-size:14px}
+    .card{padding:12px 18px;border-radius:18px;box-shadow:0 4px 0 var(--line)}
+    .wx{margin-bottom:10px;gap:6px 18px}
+    .wx .icon{font-size:42px}
+    .wx .temp{font-size:38px}
+    .wx .temp small{font-size:15px;margin-top:2px}
+    .pill{padding:6px 10px;font-size:14px}
+    .pill b{font-size:17px}
+    .signal{padding:7px 14px;font-size:17px}
+    .signal b{font-size:20px}
+    .signal .why{font-size:15px}
+    .grid{gap:12px}
+    .card h2{font-size:21px}
+    .date{margin:2px 0 6px;font-size:14px}
+    li{padding:5px 0;font-size:18px}
+    .kcal{margin-top:6px;font-size:13px}
+    .empty{padding:10px 0}
+    .next{margin-top:6px;padding:8px 12px}
+    footer{margin-top:8px;font-size:12px}
+    .sch{padding:8px 16px}
+    .pg{top:10px;right:12px}
+    .pg.left{left:12px}
+    #today h2, #today .date{padding-left:46px}
+    .pgb{min-width:36px;height:32px;font-size:19px}
+    .pgb.home{font-size:13px}
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <!-- ① 학교 고르기 -->
+  <div id="pickView" hidden>
+    <header>
+      <h1>🏫 우리 학교 <span>오늘</span></h1>
+      <div class="sub">학교를 고르면 오늘·내일 급식과 날씨를 보여 드려요</div>
+    </header>
+    <form class="search" id="searchForm">
+      <input id="q" type="search" placeholder="학교 이름 검색" autocomplete="off">
+      <button class="btn" type="button" id="locBtn">📍 내 위치</button>
+    </form>
+    <div class="chips" id="chips"></div>
+    <div class="where" id="where">위치를 확인하는 중…</div>
+    <div class="card list" id="list" style="padding:4px 0"><div class="empty">불러오는 중…</div></div>
+  </div>
+
+  <!-- ② 오늘의 학교 -->
+  <div id="dashView" hidden>
+    <header>
+      <h1 id="schoolTitle">🏫 <span></span></h1>
+      <div class="sub"><span id="schoolSub"></span> · <button class="link" id="changeBtn">학교 바꾸기</button></div>
+    </header>
+    <section class="card wx" id="weather"><div class="empty" style="grid-column:1/-1">날씨 불러오는 중…</div></section>
+    <div class="grid">
+      <section class="card" id="today"><h2>오늘 <span class="badge">TODAY</span></h2>
+        <div class="pg left"><button type="button" class="pgb" id="prevBtn" aria-label="이전 급식">‹</button></div>
+        <div class="pg"><button type="button" class="pgb home" id="homeBtn" hidden>↺ 오늘로</button></div><div class="date"></div><div class="body"><div class="empty">불러오는 중…</div></div></section>
+      <section class="card tmr" id="tomorrow"><h2>내일 <span class="badge">TOMORROW</span></h2>
+        <div class="pg"><button type="button" class="pgb" id="nextBtn" aria-label="다음 급식">›</button></div><div class="date"></div><div class="body"><div class="empty">불러오는 중…</div></div></section>
+    </div>
+    <div class="err" id="err"></div>
+  </div>
+
+  <footer>
+    <span id="srcLine">자료: 나이스 교육정보 개방 포털 · 기상청 · 에어코리아</span>
+    <span id="dataDate"> · 전국초중등학교위치표준데이터</span>
+    <span id="mealNote" class="stale" hidden></span>
+    <span id="reloadWrap" hidden> · <button class="link" id="algBtn">알레르기 표시</button> · <a class="link" id="noticeLink" href="/notice.html">공지 설정</a> · <button class="link" id="reload">새로고침</button></span>
+  </footer>
+</div>
+
+<!-- 알레르기 표시 고르기 (이 기기에만 저장) -->
+<div class="modal" id="algModal" hidden>
+  <div class="card sheet" role="dialog" aria-labelledby="algTitle">
+    <h2 id="algTitle">알레르기 표시</h2>
+    <p>고른 식품이 들어간 메뉴를 색으로 표시해요. 선택은 이 기기에만 저장되고 어디에도 전송되지 않아요.<br>표시는 학교가 나이스에 올린 알레르기 정보를 따르니, 정확한 내용은 학교 급식 안내를 함께 확인해 주세요.</p>
+    <div class="chips" id="algChips"></div>
+    <div class="actions"><button type="button" class="link" id="algClear">모두 지우기</button><button type="button" class="btn" id="algDone">확인</button></div>
+  </div>
+</div>
+
+<script>
+/* ===== 공통 ===================================================== */
+const ALLERGY = ["","난류","우유","메밀","땅콩","대두","밀","고등어","게","새우","돼지고기","복숭아","토마토","아황산류","호두","닭고기","쇠고기","오징어","조개류","잣"];
+const WEEK = ["일","월","화","수","목","금","토"];
+const LV = { e: "초", m: "중", h: "고" };
+const $ = id => document.getElementById(id);
+const ymd = d => d.getFullYear()+String(d.getMonth()+1).padStart(2,"0")+String(d.getDate()).padStart(2,"0");
+const kDate = d => `${d.getMonth()+1}월 ${d.getDate()}일 (${WEEK[d.getDay()]})`;
+const parseYmd = s => new Date(+s.slice(0,4), +s.slice(4,6)-1, +s.slice(6,8));
+const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const store = {
+  get(k){ try{ return JSON.parse(localStorage.getItem(k)); }catch(e){ return null; } },
+  set(k,v){ try{ localStorage.setItem(k, JSON.stringify(v)); }catch(e){} },
+  del(k){ try{ localStorage.removeItem(k); }catch(e){} },
+};
+async function api(path){
+  const res = await fetch(path);
+  let data = {}; try{ data = await res.json(); }catch(e){}
+  if (!res.ok) throw new Error(data.error || ("서버 오류 (" + res.status + ")"));
+  return data;
+}
+// "13시 05분" (날짜가 다르면 "11/9 13시 05분")
+function stamp(ms){
+  const d = new Date(ms), hm = `${d.getHours()}시 ${String(d.getMinutes()).padStart(2, "0")}분`;
+  return ymd(d) === ymd(new Date()) ? hm : `${d.getMonth()+1}/${d.getDate()} ${hm}`;
+}
+function showMeta(meta){
+  if (meta?.baseDate) $("dataDate").textContent =
+    ` · 전국초중등학교위치표준데이터(${meta.baseDate})`;
+}
+
+/* ===== ① 학교 고르기 ============================================ */
+let level = "";          // "" 전체, e 초, m 중, h 고
+let here = null;         // {lat, lon, source}
+let searchTimer = null;
+
+const chipsEl = $("chips");
+[["","전체"],["e","초등학교"],["m","중학교"],["h","고등학교"]].forEach(([v, label]) => {
+  const b = document.createElement("button");
+  b.type = "button"; b.textContent = label; b.dataset.v = v;
+  b.onclick = () => { level = v; markChips(); refreshList(); };
+  chipsEl.appendChild(b);
+});
+function markChips(){ [...chipsEl.children].forEach(b => b.className = b.dataset.v === level ? "on" : ""); }
+
+function renderList(schools, emptyMsg, showDist = true){
+  const list = $("list");
+  if (!schools.length){ list.innerHTML = `<div class="empty">${emptyMsg || "학교를 찾지 못했어요"}</div>`; return; }
+  list.innerHTML = schools.map(s => `
+    <button class="sch" data-id="${esc(s.id)}">
+      <span class="lv ${s.level}">${LV[s.level] || "?"}</span>
+      <span><div class="nm">${esc(s.name)}</div><div class="ad">${esc(s.addr)}</div></span>
+      ${showDist && s.dist != null ? `<span class="dt">${s.dist < 1 ? Math.round(s.dist*1000)+"m" : s.dist.toFixed(1)+"km"}</span>` : ""}
+    </button>`).join("");
+  list.querySelectorAll(".sch").forEach(b => b.onclick = () => {
+    const s = schools.find(x => x.id === b.dataset.id);
+    chooseSchool(s);
+  });
+}
+
+async function loadNearby(){
+  const lv = level ? `&level=${level}` : "";
+  try{
+    const data = here?.source === "gps"
+      ? await api(`/api/schools?lat=${here.lat}&lon=${here.lon}${lv}`)
+      : await api(`/api/schools?${lv.slice(1)}`);           // 접속 IP 기준
+    showMeta(data.meta);
+    if (data.source === "ip"){
+      here = { lat: data.origin.lat, lon: data.origin.lon, source: "ip" };
+      $("where").innerHTML = `🌐 접속한 인터넷 주소 기준 <b>대략적인 위치</b>${data.origin.city ? " (" + esc(data.origin.city) + " 근처)" : ""}예요. 정확하지 않으면 <b>📍 내 위치</b>를 누르거나 이름으로 찾아 주세요.`;
+    } else if (data.source === "gps"){
+      $("where").textContent = "📍 내 위치에서 가까운 학교";
+    } else {
+      $("where").textContent = "위치를 알 수 없어요. 학교 이름으로 찾아 주세요.";
+    }
+    renderList(data.schools, "근처에 학교가 없어요", data.source === "gps");   // IP 위치는 대략적이라 거리 숨김
+  }catch(e){
+    $("where").textContent = "학교 목록을 불러오지 못했어요: " + e.message;
+    renderList([], "—");
+  }
+}
+
+async function runSearch(){
+  const q = $("q").value.trim();
+  if (!q){ loadNearby(); return; }
+  const lv = level ? `&level=${level}` : "";
+  const near = here ? `&lat=${here.lat}&lon=${here.lon}` : "";
+  try{
+    const data = await api(`/api/schools?q=${encodeURIComponent(q)}${lv}${near}`);
+    showMeta(data.meta);
+    $("where").textContent = `'${q}' 검색 결과 ${data.total}곳` + (data.total > 30 ? " (가까운 30곳만 보여요)" : "");
+    renderList(data.schools, "이름이 맞는 학교가 없어요");
+  }catch(e){ renderList([], e.message); }
+}
+function refreshList(){ $("q").value.trim() ? runSearch() : loadNearby(); }
+
+// 브라우저 위치 (GPS·와이파이). 실패하면 접속 IP 기준으로.
+function locate(){
+  $("where").textContent = "📍 위치를 확인하는 중…";
+  if (!("geolocation" in navigator)){ loadNearby(); return; }
+  navigator.geolocation.getCurrentPosition(
+    pos => { here = { lat: +pos.coords.latitude.toFixed(5), lon: +pos.coords.longitude.toFixed(5), source: "gps" }; $("q").value = ""; loadNearby(); },
+    ()  => { here = null; loadNearby(); },
+    { enableHighAccuracy: false, timeout: 8000, maximumAge: 10 * 60 * 1000 }
+  );
+}
+
+$("q").addEventListener("input", () => { clearTimeout(searchTimer); searchTimer = setTimeout(runSearch, 300); });
+$("searchForm").addEventListener("submit", e => { e.preventDefault(); runSearch(); });
+$("locBtn").onclick = locate;
+
+function showPicker(){
+  stopDashboard();
+  $("dashView").hidden = true; $("pickView").hidden = false; $("reloadWrap").hidden = true;
+  fitScreen();
+  document.title = "우리 학교 오늘";
+  setUrl(location.pathname + (optText() ? "?" + optText() : ""));
+  markChips();
+  if (!$("list").querySelector(".sch")) locate();
+}
+
+/* ===== ② 오늘의 학교 ============================================ */
+let school = null;
+/* 주소 옵션(nav·awake). 홈 화면 앱(주소창 없는 화면)으로 열렸는데 주소에 아무것도 없으면 지난번에 쓰던 옵션을 이어 씀 */
+const STANDALONE = matchMedia("(display-mode: standalone)").matches || navigator.standalone === true;
+const OPTS = new URLSearchParams(location.search.length > 1 || !STANDALONE ? location.search : (store.get("opts") || ""));
+const optText = () => [NAV ? "" : "nav=0", AWAKE ? "awake=" + AWAKE_RAW : "", NOTICE_ID ? "notice=" + NOTICE_ID : ""].filter(Boolean).join("&");
+/* 공지: ?notice=구글시트ID → 그 시트 A열에 적은 문구를 맨 위 띠로 보여 줌 (없으면 공지 띠 없음) */
+const NOTICE_ID = /^[A-Za-z0-9_-]{25,150}$/.test(OPTS.get("notice") || "") ? OPTS.get("notice") : "";
+const NAV = OPTS.get("nav") !== "0";   // ?nav=0 이면 넘기기 버튼 숨김
+if (!NAV) document.body.classList.add("nonav");
+/* 화면 켜짐 유지 (교실 태블릿용): ?awake=0830-1500 → 평일 8:30~15:00 동안 화면이 꺼지지 않게 붙잡음.
+   옵션이 없으면 작동하지 않음 (휴대폰 배터리 보호). 그 밖의 시간에는 태블릿의 '화면 자동 꺼짐' 설정대로 꺼짐. */
+const AWAKE_RAW = OPTS.get("awake") || "";
+const AWAKE = (() => {
+  const m = AWAKE_RAW.match(/^(\d{2})(\d{2})-(\d{2})(\d{2})$/);
+  return m ? { start: m[1] + ":" + m[2], end: m[3] + ":" + m[4] } : null;
+})();
+const schoolUrl = id => "?s=" + encodeURIComponent(id) + (optText() ? "&" + optText() : "");
+/* 주소를 바꾼 뒤 부름: '홈 화면에 추가'할 때 지금 주소(학교·옵션)가 시작 주소가 되도록 설정 파일을 다시 읽게 하고, 옵션을 기억해 둠 */
+function setUrl(url){
+  history.replaceState(null, "", url);
+  if (school) store.set("opts", optText());
+  const link = document.createElement("link");
+  link.rel = "manifest"; link.href = "/manifest.json" + (location.search.length > 1 ? "?at=" + encodeURIComponent(location.search.slice(1)) : "");
+  const old = document.querySelector('link[rel="manifest"]');
+  old ? old.replaceWith(link) : document.head.appendChild(link);
+}
+let wakeLock = null;
+function inAwakeHours(d = new Date()){
+  if (!AWAKE || d.getDay() === 0 || d.getDay() === 6) return false;   // 주말 제외
+  const hm = String(d.getHours()).padStart(2, "0") + ":" + String(d.getMinutes()).padStart(2, "0");
+  return hm >= AWAKE.start && hm < AWAKE.end;
+}
+async function updateWakeLock(){
+  if (!AWAKE || !("wakeLock" in navigator)) return;
+  try{
+    if (inAwakeHours() && !document.hidden){
+      if (!wakeLock){
+        wakeLock = await navigator.wakeLock.request("screen");
+        wakeLock.addEventListener("release", () => { wakeLock = null; });
+      }
+    } else if (wakeLock){ await wakeLock.release(); wakeLock = null; }
+  }catch(e){ wakeLock = null; }   // 거부되면 조용히 넘어감 (화면을 한 번 터치하면 다시 시도)
+}
+if (AWAKE){
+  updateWakeLock();
+  setInterval(updateWakeLock, 60 * 1000);                       // 1분마다 시간대만 확인 (서버 호출 없음)
+  document.addEventListener("visibilitychange", updateWakeLock);
+  document.addEventListener("pointerdown", updateWakeLock);    // 일부 브라우저는 터치가 있어야 허용
+}
+
+function chooseSchool(s){
+  school = s;
+  store.set("school", s);
+  setUrl(schoolUrl(s.id));   // 이 주소를 즐겨찾기·QR로 쓰면 바로 이 학교
+  showDashboard();
+}
+
+function parseDishes(raw){
+  return raw.split(/<br\s*\/?>/i).map(s => s.trim()).filter(Boolean).map(s => {
+    const m = s.match(/\(([\d.\s]+)\)\s*$/);
+    const nums = m ? m[1].split(".").map(n=>+n).filter(n=>n>0 && n<ALLERGY.length) : [];
+    const name = s.replace(/\(([\d.\s]+)\)\s*$/,"").replace(/[*#@]+$/,"").trim();
+    return { name, nums, allergy: nums.map(n=>ALLERGY[n]) };
+  });
+}
+
+/* 알레르기 강조: 고른 번호(나이스 알레르기 표시 1~19)를 이 기기에만 저장 */
+let myAlg = new Set((store.get("allergy") || []).filter(n => n > 0 && n < ALLERGY.length));
+const isHit = d => d.nums.some(n => myAlg.has(n));
+function markAlgBtn(){ $("algBtn").textContent = "알레르기 표시" + (myAlg.size ? ` (${myAlg.size})` : ""); }
+function openAlg(){
+  $("algChips").innerHTML = ALLERGY.map((name, n) => n ? `<button type="button" data-n="${n}" class="${myAlg.has(n) ? "on" : ""}">${name}</button>` : "").join("");
+  $("algModal").hidden = false;
+}
+function closeAlg(){ $("algModal").hidden = true; }
+function saveAlg(){
+  store.set("allergy", [...myAlg].sort((a, b) => a - b));
+  markAlgBtn();
+  if (school && !$("dashView").hidden && (mealRows.length || mealAt)){ renderPage(); fitSoon(); }
+}
+$("algBtn").onclick = openAlg;
+$("algDone").onclick = closeAlg;
+$("algClear").onclick = () => { myAlg.clear(); saveAlg(); openAlg(); };
+$("algChips").onclick = e => {
+  const b = e.target.closest("button[data-n]"); if (!b) return;
+  const n = +b.dataset.n;
+  myAlg.has(n) ? myAlg.delete(n) : myAlg.add(n);
+  b.classList.toggle("on", myAlg.has(n));
+  saveAlg();
+};
+$("algModal").onclick = e => { if (e.target === $("algModal")) closeAlg(); };   // 바깥을 누르면 닫힘
+document.addEventListener("keydown", e => { if (e.key === "Escape") closeAlg(); });
+markAlgBtn();
+
+function renderMeal(el, date, meal, nextMeal){
+  el.querySelector(".date").textContent = kDate(date);
+  const body = el.querySelector(".body");
+  if (!meal){
+    const weekend = date.getDay()===0 || date.getDay()===6;
+    let html = `<div class="empty">${weekend ? "쉬는 날이에요 😴" : "급식이 없어요"}</div>`;
+    if (nextMeal){
+      const names = parseDishes(nextMeal.dishes).map(x => isHit(x) ? `<span class="hitname">${esc(x.name)}</span>` : esc(x.name)).join(", ");
+      html += `<div class="next"><b>다음 급식 · ${kDate(parseYmd(nextMeal.date))}</b><br>${names}</div>`;
+    }
+    body.innerHTML = html; return;
+  }
+  body.innerHTML = "<ul>" + parseDishes(meal.dishes).map(d =>
+    `<li${isHit(d) ? ' class="hit"' : ""}><span>${esc(d.name)}</span>${d.nums.length?`<span class="alg" title="알레르기 유발 식품">${d.nums.map(n => myAlg.has(n) ? `<b>${ALLERGY[n]}</b>` : ALLERGY[n]).join("·")}</span>`:""}</li>`
+  ).join("") + "</ul>" + (meal.kcal ? `<div class="kcal">🔥 ${esc(meal.kcal)}</div>` : "");
+}
+
+/* 급식 넘기기: 0쪽 = 오늘·내일, 1쪽부터 = 급식 있는 날 두 개씩 (주말·휴업일 건너뜀)
+   공지 칸이 켜진 날: 급식 칸 하나만 하루씩 넘김 (공지 칸은 그대로) */
+let mealRows = [], page = 0, pageTimer = null;
+let noticeRows = [], lastNotice = 0, boardOn = false;
+const NOTICE_MS = 10 * 60 * 1000, NOTICE_SHOW = 8;
+// 오늘 띄울 공지 (날짜 조건은 이 기기의 오늘 날짜로 판단)
+function activeNotices(){
+  const t = ymd(new Date());
+  return noticeRows.filter(n => (!n.from || n.from <= t) && (!n.to || t <= n.to)).slice(0, NOTICE_SHOW);
+}
+// '내일' 칸을 공지 칸으로 바꾸거나 되돌림. 공지 칸일 때는 › 버튼도 급식 칸으로 옮김
+function renderBoard(){
+  const on = activeNotices(), el = $("tomorrow"), was = boardOn;
+  boardOn = on.length > 0;
+  if (was !== boardOn) page = 0;
+  el.classList.toggle("board", boardOn); el.classList.toggle("tmr", !boardOn);
+  $(boardOn ? "today" : "tomorrow").querySelector(".pg:not(.left)").appendChild($("nextBtn"));
+  $("homeBtn").textContent = boardOn ? "↺" : "↺ 오늘로";      // 급식 칸에 버튼이 셋이 되므로 짧게
+  $("homeBtn").setAttribute("aria-label", "오늘로"); $("homeBtn").title = "오늘로";
+  if (boardOn){
+    el.querySelector("h2").innerHTML = '📢 공지 <span class="badge">NOTICE</span>';
+    el.querySelector(".date").textContent = kDate(new Date());
+    el.querySelector(".body").innerHTML = "<ul>" + on.map(n => `<li><span>${esc(n.text)}</span></li>`).join("") + "</ul>";
+  } else if (was){
+    el.querySelector("h2").innerHTML = '내일 <span class="badge">TOMORROW</span>';
+    el.querySelector(".date").textContent = ""; el.querySelector(".body").innerHTML = '<div class="empty">—</div>';
+  }
+  return boardOn;
+}
+const RETURN_MS = 60 * 1000;                          // 1분 동안 아무도 안 만지면 오늘로
+const setHead = (el, html) => { el.querySelector("h2").innerHTML = html; };
+function relLabel(n){ return n === 1 ? "내일" : n === 2 ? "모레" : n + "일 뒤"; }
+
+function renderPicked(el, row, today){
+  if (!row){
+    setHead(el, "다음 급식");
+    el.querySelector(".date").textContent = "";
+    el.querySelector(".body").innerHTML = '<div class="empty">아직 등록된 식단이 없어요</div>';
+    return;
+  }
+  const d = parseYmd(row.date);
+  setHead(el, `${d.getMonth()+1}월 ${d.getDate()}일 (${WEEK[d.getDay()]})`);
+  renderMeal(el, d, row, null);
+  el.querySelector(".date").textContent = relLabel(Math.round((d - today) / 86400000));
+}
+
+function renderPage(){
+  const today = new Date(); today.setHours(0,0,0,0);
+  const tomorrow = new Date(today); tomorrow.setDate(today.getDate()+1);
+  const board = renderBoard();
+  const future = mealRows.filter(r => r.date > ymd(today));
+  if (page > future.length) page = future.length;
+  if (board){
+    // 공지 칸이 켜진 날: 급식 칸 하나에 오늘 → 다음 급식일 → … 하루씩 (쉬는 날이면 '다음 급식'을 이 칸에 안내)
+    if (page === 0){
+      setHead($("today"), '오늘 <span class="badge">TODAY</span>');
+      renderMeal($("today"), today, mealRows.find(r => r.date === ymd(today)), future[0]);
+    } else renderPicked($("today"), future[page-1], today);
+  } else if (page === 0){
+    const byDay = Object.fromEntries(mealRows.map(r=>[r.date, r]));
+    const next = mealRows.find(r => r.date > ymd(tomorrow));
+    setHead($("today"), '오늘 <span class="badge">TODAY</span>');
+    setHead($("tomorrow"), '내일 <span class="badge">TOMORROW</span>');
+    // 다음 급식은 '내일' 칸이 쉬는 날일 때 그 칸에만 한 번 보여 줌 (오늘 칸은 "쉬는 날이에요"만)
+    renderMeal($("today"), today, byDay[ymd(today)], null);
+    renderMeal($("tomorrow"), tomorrow, byDay[ymd(tomorrow)], next);
+  } else {
+    renderPicked($("today"), future[page-1], today);
+    renderPicked($("tomorrow"), future[page], today);
+  }
+  $("prevBtn").disabled = page === 0;
+  $("homeBtn").hidden = page === 0;
+  $("nextBtn").disabled = !future[page];
+}
+
+function armReturn(){
+  clearTimeout(pageTimer);
+  if (page > 0) pageTimer = setTimeout(() => { page = 0; renderPage(); fitSoon(); }, RETURN_MS);
+}
+function goPage(n){ page = Math.max(0, n); renderPage(); fitSoon(); armReturn(); }
+$("prevBtn").onclick = () => goPage(page - 1);
+$("nextBtn").onclick = () => goPage(page + 1);
+$("homeBtn").onclick = () => goPage(0);
+document.addEventListener("pointerdown", () => { if (page > 0) armReturn(); });   // 만지는 동안은 복귀 미룸
+document.addEventListener("keydown", e => {
+  if (!NAV || $("dashView").hidden || !$("algModal").hidden || e.target.matches("input")) return;
+  if (e.key === "ArrowRight" && !$("nextBtn").disabled) goPage(page + 1);
+  if (e.key === "ArrowLeft" && page > 0) goPage(page - 1);
+});
+
+/* 갱신 실패 대비: 마지막으로 받은 값을 그대로 두고 2·5·10분 뒤 다시 시도 (그래도 안 되면 다음 정기 갱신 때) */
+const RETRY_MS = [2, 5, 10].map(m => m * 60 * 1000);
+const retryState = { meal: { n: 0, t: null }, wx: { n: 0, t: null } };
+function retryReset(kind){ clearTimeout(retryState[kind].t); retryState[kind].n = 0; }
+function retryLater(kind, fn){
+  const r = retryState[kind]; clearTimeout(r.t);
+  if (r.n < RETRY_MS.length) r.t = setTimeout(fn, RETRY_MS[r.n++]);
+}
+
+let lastMeal = 0, lastDay = "", mealAt = 0, mealFail = false;   // mealAt: 마지막으로 성공한 시각
+function showMealNote(){
+  const on = mealFail && mealAt;
+  $("mealNote").hidden = !on;
+  if (on) $("mealNote").textContent = ` · ⚠️ 급식 ${stamp(mealAt)} 기준`;
+}
+async function loadMeals(isRetry){
+  if (!school) return;
+  if (isRetry !== true) retryReset("meal");
+  if (ymd(new Date()) !== lastDay) page = 0;          // 날짜가 바뀌면 오늘로
+  lastMeal = Date.now(); lastDay = ymd(new Date());
+  const err = $("err"); err.style.display = "none";
+  const today = new Date(); today.setHours(0,0,0,0);
+  const tomorrow = new Date(today); tomorrow.setDate(today.getDate()+1);
+  const until = new Date(today); until.setDate(today.getDate()+14);
+  try{
+    const data = await api(`/api/meal?name=${encodeURIComponent(school.name)}&addr=${encodeURIComponent(school.addr)}&from=${ymd(today)}&to=${ymd(until)}`);
+    mealRows = data.meals || []; mealAt = Date.now(); mealFail = false;
+    retryReset("meal");
+    renderPage();
+  }catch(e){
+    mealFail = true; lastMeal = 0;                    // 화면이 다시 켜지면 바로 재시도하도록
+    if (mealAt) renderPage();                         // 받아 둔 식단(2주치)으로 계속 보여 줌 — 날짜가 넘어가도 맞게 표시
+    else {
+      err.textContent = "⚠️ 급식: " + e.message; err.style.display = "block";
+      document.querySelectorAll("#dashView .grid .body").forEach(b => b.innerHTML = '<div class="empty">—</div>');
+      boardOn = false; renderBoard();                 // 급식을 못 받아도 공지 칸은 보여 줌
+    }
+    retryLater("meal", () => loadMeals(true));
+  }
+  showMealNote();
+  fitSoon();
+}
+
+const GRADE = ["", "좋음", "보통", "나쁨", "매우나쁨"];
+const SIGNAL = { ok: "⭕ 운동장 활동 좋아요", caution: "⚠️ 운동장 활동 주의", no: "❌ 실내 활동 권장" };
+function wxIcon(now, today){
+  const pty = now?.pty || today?.pty || 0;
+  if (pty === 3 || pty === 7) return "❄️";
+  if (pty === 2 || pty === 6) return "🌨️";
+  if (pty > 0) return "🌧️";
+  if (today?.sky === 4) return "☁️";
+  if (today?.sky === 3) return "⛅";
+  const h = new Date().getHours();
+  return (h >= 18 || h < 6) ? "🌙" : "☀️";
+}
+/* 특보: 날씨와 함께 오는 것과 20분마다 따로 받는 것 중 더 최근 발표분을 씀 */
+let wxData = null, warnLatest = null;          // warnLatest = {list, tmFc}
+function currentWarnings(w){
+  const fromWx = { list: w.warnings || [], tmFc: Number(w.warnTime) || 0 };
+  if (warnLatest && warnLatest.tmFc >= fromWx.tmFc) return warnLatest;
+  return fromWx;
+}
+// 특보를 뺀 기준 판단(outdoorBase)에 최신 특보를 덧씌움 (서버 judge와 같은 규칙)
+// forTomorrow: 내일 기준일 때는 지금 발효 중인 경보도 '주의'로 한 단계 낮춤 (밤사이 해제될 수 있으므로)
+function applyWarnings(base, list, forTomorrow = false){
+  let level = base.level;
+  const rank = { ok: 0, caution: 1, no: 2 };
+  for (const x of list){
+    const need = x.level === "경보" && !forTomorrow ? "no" : "caution";
+    if (rank[need] > rank[level]) level = need;
+  }
+  return { level, reasons: [...list.map(x => x.name), ...base.reasons],
+           umbrella: base.umbrella || list.some(x => x.kind === "호우" || x.kind === "태풍") };
+}
+
+function renderWeather(w){
+  wxData = w;
+  const { now, today, air } = w;
+  const warn = currentWarnings(w);
+  // 하교(16:30) 뒤 ~ 자정: 신호등을 '내일 운동장' 기준으로 (지금 발효 중인 특보는 그대로 함께 반영)
+  const clock = new Date();
+  const evening = clock.getHours() > 16 || (clock.getHours() === 16 && clock.getMinutes() >= 30);
+  const forTomorrow = evening && w.outdoorTomorrow;
+  const baseJudge = forTomorrow ? w.outdoorTomorrow : w.outdoorBase;
+  const outdoor = baseJudge ? applyWarnings(baseJudge, warn.list, !!forTomorrow) : w.outdoor;
+  // 신호등 이유: 기본은 특보 모두, 3단 배치(800×480 등)에서는 빨간 띠에 나온 특보(경보·태풍)를 뺌
+  const inBar = new Set(warn.list.filter(x => x.level === "경보" || x.kind === "태풍").map(x => x.name));
+  const label = r => /^[가-힣]+(주의보|경보)$/.test(r) ? r + " 발효 중" : r.replace("비/눈", "비·눈");   // 줄바꿈이 '/'에서 끊기지 않게
+  const whyFull = (outdoor?.reasons || []).map(label);
+  const SHORT = { "새벽에 비 — 운동장이 젖어 있을 수 있어요": "새벽 비·운동장 젖음", "새벽 비 — 운동장이 젖어 있을 수 있어요": "새벽 비·운동장 젖음" };
+  const whyShort = (outdoor?.reasons || []).filter(r => !inBar.has(r)).map(r => SHORT[r] || label(r));
+  if (!whyShort.length && whyFull.length) whyShort.push("↑ 위 특보 참고");   // 이유가 모두 빨간 띠로 옮겨 간 경우
+  const whyHtml = (whyFull.length ? `<span class="why why-full">${esc(whyFull.join(" · "))}</span>` : "")
+                + (whyShort.length ? `<span class="why why-short">${esc(whyShort.join(" · "))}</span>` : "");
+  const pills = [];
+  if (today?.tmn != null || today?.tmx != null) pills.push(`<div class="pill mm">최저/최고<br><b>${today.tmn ?? "-"}° / ${today.tmx ?? "-"}°</b></div>`);
+  // 지금 비/눈이 오면 먼저 알려 줌
+  if (now?.pty > 0 || now?.rain1h > 0)
+    pills.push(`<div class="pill g1">지금<br><b>${[3, 7].includes(now.pty) ? "눈" : "비"} 와요</b></div>`);
+  // 강수확률: 학교 시간과 상관없이 '지금' 시각의 예보값 (옛 서버 응답이면 popMax로 대신)
+  // 비/눈이 오는 동안에는 강수확률 대신 실제 1시간 강수량 (예보 확률과 섞여 헷갈리지 않게)
+  const raining = now?.pty > 0 || now?.rain1h > 0;
+  if (raining) pills.push(`<div class="pill">1시간 강수량<br><b>${now.rain1h > 0 ? now.rain1h + "mm" : "1mm 미만"}</b></div>`);
+  else if (today) pills.push(`<div class="pill">강수확률<br><b>${today.popNow ?? today.popMax}%</b></div>`);
+  if (air?.pm10 != null) pills.push(`<div class="pill g${air.grade10}">미세먼지<br><b>${GRADE[air.grade10]}</b> ${air.pm10}</div>`);
+  if (air?.pm25 != null) pills.push(`<div class="pill g${air.grade25}">초미세먼지<br><b>${GRADE[air.grade25]}</b> ${air.pm25}</div>`);
+  // 우산 칸은 '오늘' 기준 (저녁에는 지금 비가 오거나 밤 강수확률이 높을 때만). 내일 우산은 '내일' 줄에 따로 나옴
+  const umbrellaToday = forTomorrow ? (now?.pty > 0 || (today?.popLater ?? 0) >= 60) : outdoor?.umbrella;
+  if (umbrellaToday) pills.push(`<div class="pill umb">☂️<br><b>우산 챙기기</b></div>`);
+  const src = wxFail && wxAt ? `<span class="stale">⚠️ ${stamp(wxAt)} 기준 · 새 정보를 받지 못했어요</span>` : [
+    now ? `기상청 ${now.time} 관측` : "",
+    air ? `에어코리아 ${esc(air.station)} 측정소${air.distKm != null ? " (" + air.distKm + "km)" : ""}` : "",
+    w.errors && Object.keys(w.errors).length ? "일부 정보를 못 불러왔어요" : "",
+  ].filter(Boolean).join(" · ");
+  $("weather").innerHTML = `
+    ${alertBar(warn.list, warn.tmFc)}
+    <div class="big"><div class="icon">${wxIcon(now, today)}</div>
+      <div class="temp">${now?.temp != null ? now.temp + "°" : "-"}<small>지금 기온${now?.humidity != null ? " · 습도 " + now.humidity + "%" : ""}${today?.tmn != null || today?.tmx != null ? `<span class="mm-inline"> · ${today.tmn ?? "-"}°/${today.tmx ?? "-"}°</span>` : ""}</small></div></div>
+    <div class="facts">${pills.join("")}</div>
+    ${tomorrowRow(w.tomorrow, w.dustTomorrow)}
+    ${outdoor ? `<div class="signal ${outdoor.level}"><b>${forTomorrow ? "내일 " : ""}${SIGNAL[outdoor.level]}</b>${whyHtml}</div>` : ""}
+    <div class="src">${src}</div>`;
+}
+// 경보 또는 태풍 특보가 있으면 맨 위 빨간 띠 (주의보는 신호등 이유에만 표시)
+function alertBar(list, tmFc){
+  const big = (list || []).filter(w => w.level === "경보" || w.kind === "태풍");
+  if (!big.length) return "";
+  const t = tmFc && String(tmFc).length >= 12
+    ? `${+String(tmFc).slice(4,6)}/${+String(tmFc).slice(6,8)} ${String(tmFc).slice(8,10)}:${String(tmFc).slice(10,12)} 기상청 발표` : "기상청 발표";
+  return `<div class="alert">🚨 <b>${big.map(w => esc(w.name)).join(" · ")} 발효 중</b><small>${t}</small></div>`;
+}
+
+function tomorrowRow(t, dust){
+  if (!t) return "";
+  // 내일 미세먼지: 에어코리아 대기질 예보(권역 단위 등급). 미세·초미세 중 나쁜 쪽을 보여 줌
+  const dustHtml = dust?.worst ? `<span class="dust g${dust.worst >= 3 ? dust.worst : 0}">${dust.kind === "pm25" ? "초미세먼지" : "미세먼지"} <b>${GRADE[dust.worst]}</b></span>` : "";
+  // 내일 줄도 순수 날씨: 하루 전체(0~24시) 기준
+  const pty = t.ptyDay ?? t.pty, pop = t.popDay ?? t.popMax, from = t.rainFromDay ?? t.rainFrom;
+  const icon = pty === 3 ? "❄️" : pty > 0 ? "🌧️" : t.sky === 4 ? "☁️" : t.sky === 3 ? "⛅" : "☀️";
+  const word = [3, 7].includes(pty) ? "눈" : "비";
+  return `<div class="tmrow"><span class="lbl">내일</span>
+    <span>${icon} <b>${t.tmn ?? "-"}° / ${t.tmx ?? "-"}°</b></span>
+    <span>강수확률 <b>${pop}%</b></span>
+    ${from != null ? `<span>☂️ ${from}시쯤부터 ${word}</span>` : ""}
+    ${dustHtml}</div>`;
+}
+
+/* 자동 맞춤: 대시보드가 화면보다 길면 글자·간격을 같은 비율로 줄이고(최소 80%),
+   큰 화면(가로 700px 이상 · 세로 860px 초과: 교실 TV·전자칠판·큰 모니터)에서는 화면에 가득 차게 키움 */
+const FIT_MIN = 0.8, FIT_MAX = 5;
+function fitScreen(){
+  const root = document.documentElement, wrap = document.querySelector(".wrap");
+  const set = f => { root.style.setProperty("--fit", f.toFixed(3)); root.style.setProperty("--up", Math.max(1, f).toFixed(3)); };
+  const fits = f => { set(f); return wrap.getBoundingClientRect().bottom + window.scrollY <= window.innerHeight && root.scrollWidth <= window.innerWidth; };
+  set(1);
+  if ($("dashView").hidden) return;
+  // 화면에 들어가는 가장 큰 배율을 찾음 (줄바꿈이 바뀌어 높이가 비례하지 않으므로 이분 탐색)
+  let lo, hi;
+  if (fits(1)){
+    if (!(window.innerWidth >= 700 && window.innerHeight > 860)) return;   // 보통 크기 화면은 100% 그대로
+    if (fits(FIT_MAX)) return;
+    lo = 1; hi = FIT_MAX;
+  } else {
+    if (!fits(FIT_MIN)) return;                      // 최소 배율로도 넘치면 그대로 두고 스크롤 허용
+    lo = FIT_MIN; hi = 1;
+  }
+  for (let i = 0; i < 9; i++){
+    const mid = (lo + hi) / 2;
+    if (fits(mid)) lo = mid; else hi = mid;
+  }
+  set(lo);
+}
+let fitTimer = null;
+const fitSoon = () => { clearTimeout(fitTimer); fitTimer = setTimeout(fitScreen, 50); };
+window.addEventListener("resize", fitSoon);
+document.fonts?.ready?.then(fitSoon);
+
+let lastWx = 0, lastWarn = 0, wxAt = 0, wxFail = false;        // wxAt: 마지막으로 성공한 시각
+const WX_KEEP_MS = 3 * 60 * 60 * 1000;                           // 이전 날씨는 같은 날 · 3시간 안의 것만 대신 보여 줌
+const wxUsable = () => wxData && wxAt && Date.now() - wxAt < WX_KEEP_MS && ymd(new Date(wxAt)) === ymd(new Date());
+let wxExpire = null;
+function wxError(msg){
+  wxData = null;
+  $("weather").innerHTML = `<div class="empty" style="grid-column:1/-1">날씨 정보를 불러오지 못했어요<br><small>${esc(msg)}</small></div>`;
+}
+async function loadWeather(isRetry){
+  if (!school) return;
+  if (isRetry !== true) retryReset("wx");
+  lastWx = Date.now();
+  try{
+    // 좌표를 소수 둘째 자리(약 1km)로 맞춰 같은 동네 학교끼리 캐시를 함께 씀
+    const data = await api(`/api/weather?lat=${school.lat.toFixed(2)}&lon=${school.lon.toFixed(2)}&sido=${encodeURIComponent(school.addr)}`);
+    wxAt = Date.now(); wxFail = false;
+    retryReset("wx"); clearTimeout(wxExpire);
+    renderWeather(data);
+  }catch(e){
+    wxFail = true; lastWx = 0;                        // 화면이 다시 켜지면 바로 재시도하도록
+    clearTimeout(wxExpire);
+    if (wxUsable()){
+      renderWeather(wxData);                          // 조금 전 값을 그대로 두고 '○시 ○분 기준'만 표시
+      wxExpire = setTimeout(() => {                   // 3시간이 지나도록 새 값을 못 받으면 옛 값을 내림
+        if (wxFail && !wxUsable()){ wxError("3시간 넘게 새 정보를 받지 못했어요"); fitSoon(); }
+      }, wxAt + WX_KEEP_MS - Date.now() + 1000);
+    } else wxError(e.message);
+    retryLater("wx", () => loadWeather(true));
+  }
+  fitSoon();
+}
+// 특보만 따로 확인 → 바뀌었으면 날씨 카드를 바로 다시 그림
+async function loadWarnings(){
+  if (!school) return;
+  lastWarn = Date.now();
+  try{
+    const d = await api(`/api/warnings?addr=${encodeURIComponent(school.addr)}`);
+    const next = { list: d.active || [], tmFc: Number(d.tmFc) || 0 };
+    const changed = JSON.stringify(next) !== JSON.stringify(warnLatest);
+    warnLatest = next;
+    if (changed && wxData){ renderWeather(wxData); fitSoon(); }
+  }catch(e){ /* 특보 확인 실패는 조용히 넘어감 (날씨에 딸려 오는 특보는 그대로 표시) */ }
+}
+
+/* 공지 (구글 시트): 읽기에 실패하면 마지막으로 받은 공지를 그대로 둠 */
+function renderNotice(){
+  if (mealAt) renderPage(); else renderBoard();     // 급식을 아직 못 받았으면 공지 칸만
+  fitSoon();
+}
+async function loadNotice(){
+  if (!NOTICE_ID || !school) return;
+  lastNotice = Date.now();
+  try{ noticeRows = (await api(`/api/notice?id=${NOTICE_ID}`)).notices || []; }catch(e){ /* 조용히 넘어감 */ }
+  renderNotice();
+}
+
+/* 자동 갱신 (낮 6~18시만, 밤에는 쉼)
+   - 급식: 3시간마다 + 자정(0:01)에 한 번
+   - 날씨: 매시 20분 (기상청 정각 관측·에어코리아 값이 공개된 뒤)
+   - 특보: 20분마다 따로 확인
+   - 절전에서 깨어나면: 오래된 것만 바로 다시 불러옴 */
+const MEAL_MS = 3 * 60 * 60 * 1000, WX_MS = 60 * 60 * 1000, WARN_MS = 20 * 60 * 1000;
+const daytime = () => { const h = new Date().getHours(); return h >= 6 && h < 18; };
+let timers = [];
+function stopDashboard(){
+  timers.forEach(t => { clearTimeout(t); clearInterval(t); }); timers = []; clearTimeout(pageTimer);
+  retryReset("meal"); retryReset("wx"); clearTimeout(wxExpire);
+  page = 0; mealRows = []; wxData = null; warnLatest = null;
+  mealAt = 0; mealFail = false; wxAt = 0; wxFail = false; showMealNote();
+  noticeRows = []; renderNotice();
+}
+function scheduleMidnight(){
+  const now = new Date();
+  const next = new Date(now.getFullYear(), now.getMonth(), now.getDate()+1, 0, 1);
+  timers.push(setTimeout(() => { loadMeals(); loadWeather(); loadNotice(); renderNotice(); scheduleMidnight(); }, next - now));
+}
+function scheduleEvening(){
+  const now = new Date();
+  const next = new Date(now); next.setHours(16, 30, 5, 0);
+  if (next <= now) next.setDate(next.getDate() + 1);
+  timers.push(setTimeout(() => { if (wxData) { renderWeather(wxData); fitSoon(); } scheduleEvening(); }, next - now));
+}
+function scheduleWeather(){
+  const now = new Date();
+  const next = new Date(now); next.setMinutes(20, 0, 0);
+  if (next <= now) next.setHours(next.getHours() + 1);
+  timers.push(setTimeout(() => { if (daytime()) loadWeather(); scheduleWeather(); }, next - now));
+}
+document.addEventListener("visibilitychange", () => {
+  if (document.hidden || !school || $("dashView").hidden) return;
+  if (ymd(new Date()) !== lastDay || Date.now() - lastMeal > MEAL_MS) loadMeals();
+  if (Date.now() - lastWx > WX_MS) loadWeather();
+  if (Date.now() - lastWarn > WARN_MS) loadWarnings();   // 밤이어도 사람이 볼 때는 특보를 확인
+  if (Date.now() - lastNotice > NOTICE_MS) loadNotice();
+});
+// 끊겼던 인터넷이 다시 연결되면 못 받은 것만 바로 다시 받음
+window.addEventListener("online", () => {
+  if (!school || $("dashView").hidden) return;
+  if (mealFail) loadMeals();
+  if (wxFail) loadWeather();
+});
+
+function showDashboard(){
+  stopDashboard();
+  $("pickView").hidden = true; $("dashView").hidden = false; $("reloadWrap").hidden = false;
+  $("schoolTitle").innerHTML = `🏫 <span>${esc(school.name)}</span>`;
+  $("schoolSub").textContent = school.addr.split(" ").slice(0, 3).join(" ");
+  document.title = school.name + " 오늘";
+  $("weather").innerHTML = '<div class="empty" style="grid-column:1/-1">날씨 불러오는 중…</div>';
+  loadMeals(); loadWeather(); loadWarnings(); loadNotice();   // 열 때는 특보도 따로 바로 확인 (날씨 캐시는 최대 1시간이라)
+  scheduleMidnight(); scheduleWeather(); scheduleEvening();
+  timers.push(
+    setInterval(() => { if (daytime()) loadMeals(); }, MEAL_MS),
+    setInterval(() => { if (daytime()) loadWarnings(); }, WARN_MS),
+    setInterval(() => { if (daytime()) loadNotice(); }, NOTICE_MS),
+  );
+}
+
+$("changeBtn").onclick = () => { store.del("school"); school = null; showPicker(); };
+$("reload").onclick = () => { loadMeals(); loadWeather(); loadWarnings(); loadNotice(); };
+
+/* ===== 시작 ===================================================== */
+(async function start(){
+  const id = new URLSearchParams(location.search).get("s");
+  const saved = store.get("school");
+  if (id){
+    try{
+      const data = await api(`/api/schools?id=${encodeURIComponent(id)}`);
+      showMeta(data.meta);
+      chooseSchool(data.school);
+      return;
+    }catch(e){ /* 없는 학교면 고르기 화면으로 */ }
+  } else if (saved?.id){
+    school = saved;
+    setUrl(schoolUrl(saved.id));
+    showDashboard();
+    api(`/api/schools?id=${encodeURIComponent(saved.id)}`).then(d => showMeta(d.meta)).catch(() => {});
+    return;
+  }
+  showPicker();
+})();
+</script>
+</body>
+</html>
