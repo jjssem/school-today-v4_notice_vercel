@@ -8,8 +8,10 @@ async function handler(req) {
   try {
     const year = new Date(Date.now() + 9 * 3600e3).getUTCFullYear();   // 한국 시간 기준 올해 ('11/12'처럼 연도 없는 날짜용)
     const notices = await fetchNotices(id, year);
+    // 보통은 서버(CDN)가 2분 보관. 화면의 '새로고침' 버튼은 &fresh=시각 을 붙여 보관분을 건너뜀
+    const fresh = new URL(req.url).searchParams.has("fresh");
     return Response.json({ notices }, {
-      headers: { "Cache-Control": "public, max-age=120", "Vercel-CDN-Cache-Control": "max-age=300" },   // 최대 5분
+      headers: fresh ? { "Cache-Control": "no-store" } : { "Cache-Control": "public, max-age=60", "Vercel-CDN-Cache-Control": "max-age=120" },
     });
   } catch (e) {
     return Response.json({ error: e.message }, { status: 502, headers: { "Cache-Control": "no-store" } });

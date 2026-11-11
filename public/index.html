@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>우리 학교 오늘</title>
+<title>오늘 어때</title>
 <meta name="description" content="내 위치에서 가까운 학교의 오늘·내일 급식과 날씨·미세먼지">
 <!-- 홈 화면에 추가하면 앱처럼 열림 (주소창 없이). 시작 주소는 추가할 때 보고 있던 주소(?s=학교ID&옵션) 그대로 -->
 <link rel="manifest" href="/manifest.json">
@@ -13,7 +13,7 @@
 <link rel="apple-touch-icon" href="/apple-touch-icon.png">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-title" content="우리 학교 오늘">
+<meta name="apple-mobile-web-app-title" content="오늘 어때">
 <link href="https://fonts.googleapis.com/css2?family=Gowun+Dodum&family=Jua&display=swap" rel="stylesheet">
 <style>
   :root{
@@ -229,7 +229,7 @@
   <!-- ① 학교 고르기 -->
   <div id="pickView" hidden>
     <header>
-      <h1>🏫 우리 학교 <span>오늘</span></h1>
+      <h1>🏫 <span>오늘</span> 어때</h1>
       <div class="sub">학교를 고르면 오늘·내일 급식과 날씨를 보여 드려요</div>
     </header>
     <form class="search" id="searchForm">
@@ -391,7 +391,7 @@ function showPicker(){
   stopDashboard();
   $("dashView").hidden = true; $("pickView").hidden = false; $("reloadWrap").hidden = true;
   fitScreen();
-  document.title = "우리 학교 오늘";
+  document.title = "오늘 어때";
   setUrl(location.pathname + (optText() ? "?" + optText() : ""));
   markChips();
   if (!$("list").querySelector(".sch")) locate();
@@ -404,7 +404,14 @@ const STANDALONE = matchMedia("(display-mode: standalone)").matches || navigator
 const OPTS = new URLSearchParams(location.search.length > 1 || !STANDALONE ? location.search : (store.get("opts") || ""));
 const optText = () => [NAV ? "" : "nav=0", AWAKE ? "awake=" + AWAKE_RAW : "", NOTICE_ID ? "notice=" + NOTICE_ID : ""].filter(Boolean).join("&");
 /* 공지: ?notice=구글시트ID → 그 시트 A열에 적은 문구를 맨 위 띠로 보여 줌 (없으면 공지 띠 없음) */
-const NOTICE_ID = /^[A-Za-z0-9_-]{25,150}$/.test(OPTS.get("notice") || "") ? OPTS.get("notice") : "";
+/* 한 번 연결한 기기는 시트를 기억해서, 다음부터는 짧은 주소(?s=학교ID)로 열어도 공지가 나옴. ?notice=0 이면 이 기기의 기억을 지움 */
+const NOTICE_ID = (() => {
+  const q = OPTS.get("notice") || "", valid = v => /^[A-Za-z0-9_-]{25,150}$/.test(v || "");
+  if (q === "0"){ store.del("notice"); return ""; }
+  if (valid(q)){ store.set("notice", q); return q; }
+  const saved = store.get("notice");
+  return valid(saved) ? saved : "";
+})();
 const NAV = OPTS.get("nav") !== "0";   // ?nav=0 이면 넘기기 버튼 숨김
 if (!NAV) document.body.classList.add("nonav");
 /* 화면 켜짐 유지 (교실 태블릿용): ?awake=0830-1500 → 평일 8:30~15:00 동안 화면이 꺼지지 않게 붙잡음.
@@ -513,7 +520,10 @@ function renderMeal(el, date, meal, nextMeal){
    공지 칸이 켜진 날: 급식 칸 하나만 하루씩 넘김 (공지 칸은 그대로) */
 let mealRows = [], page = 0, pageTimer = null;
 let noticeRows = [], lastNotice = 0, boardOn = false;
-const NOTICE_MS = 10 * 60 * 1000, NOTICE_SHOW = 8;
+// 공지 확인 주기: 등하교 시간(7:30~16:30)은 5분마다, 그 밖의 낮(6~18시)은 30분마다, 밤에는 쉼
+const NOTICE_MS = 5 * 60 * 1000, NOTICE_SLOW_MS = 30 * 60 * 1000, NOTICE_SHOW = 8;
+const schoolHours = () => { const d = new Date(), m = d.getHours() * 60 + d.getMinutes(); return m >= 450 && m < 990; };
+const noticeDue = () => daytime() && (schoolHours() || Date.now() - lastNotice >= NOTICE_SLOW_MS - 30000);
 // 오늘 띄울 공지 (날짜 조건은 이 기기의 오늘 날짜로 판단)
 function activeNotices(){
   const t = ymd(new Date());
@@ -825,10 +835,14 @@ function renderNotice(){
   if (mealAt) renderPage(); else renderBoard();     // 급식을 아직 못 받았으면 공지 칸만
   fitSoon();
 }
-async function loadNotice(){
+// fresh = true (새로고침 버튼): 서버 보관분(2분)을 건너뛰고 시트를 바로 다시 읽음. 연타는 10초에 한 번만
+let lastFresh = 0;
+async function loadNotice(fresh){
   if (!NOTICE_ID || !school) return;
+  if (fresh && Date.now() - lastFresh < 10000) fresh = false;
+  if (fresh) lastFresh = Date.now();
   lastNotice = Date.now();
-  try{ noticeRows = (await api(`/api/notice?id=${NOTICE_ID}`)).notices || []; }catch(e){ /* 조용히 넘어감 */ }
+  try{ noticeRows = (await api(`/api/notice?id=${NOTICE_ID}` + (fresh ? "&fresh=" + Date.now() : ""))).notices || []; }catch(e){ /* 조용히 넘어감 */ }
   renderNotice();
 }
 
@@ -883,19 +897,19 @@ function showDashboard(){
   $("pickView").hidden = true; $("dashView").hidden = false; $("reloadWrap").hidden = false;
   $("schoolTitle").innerHTML = `🏫 <span>${esc(school.name)}</span>`;
   $("schoolSub").textContent = school.addr.split(" ").slice(0, 3).join(" ");
-  document.title = school.name + " 오늘";
+  document.title = school.name + " · 오늘 어때";
   $("weather").innerHTML = '<div class="empty" style="grid-column:1/-1">날씨 불러오는 중…</div>';
   loadMeals(); loadWeather(); loadWarnings(); loadNotice();   // 열 때는 특보도 따로 바로 확인 (날씨 캐시는 최대 1시간이라)
   scheduleMidnight(); scheduleWeather(); scheduleEvening();
   timers.push(
     setInterval(() => { if (daytime()) loadMeals(); }, MEAL_MS),
     setInterval(() => { if (daytime()) loadWarnings(); }, WARN_MS),
-    setInterval(() => { if (daytime()) loadNotice(); }, NOTICE_MS),
+    setInterval(() => { if (noticeDue()) loadNotice(); }, NOTICE_MS),
   );
 }
 
 $("changeBtn").onclick = () => { store.del("school"); school = null; showPicker(); };
-$("reload").onclick = () => { loadMeals(); loadWeather(); loadWarnings(); loadNotice(); };
+$("reload").onclick = () => { loadMeals(); loadWeather(); loadWarnings(); loadNotice(true); };
 
 /* ===== 시작 ===================================================== */
 (async function start(){

@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>공지 설정 · 우리 학교 오늘</title>
+<title>공지 설정 · 오늘 어때</title>
 <link rel="icon" type="image/png" href="/icon-192.png">
 <style>
   :root{ --bg:#fdf8ef; --card:#fff; --ink:#2b2a27; --muted:#7a756b; --line:#efe6d6; --accent:#e8743b; --note:#fff3c4; --note-ink:#5c4a00; --note-line:#f0dc8a; }
@@ -25,6 +25,9 @@
   .btn{font:inherit;border:0;border-radius:10px;padding:9px 16px;background:var(--accent);color:#fff;cursor:pointer;text-decoration:none;display:inline-block}
   .btn.ghost{background:none;color:var(--accent);border:1.5px solid var(--accent)}
   .row{display:flex;flex-wrap:wrap;gap:8px;margin-top:10px}
+  #qr[hidden]{display:none}
+  #qr{margin-top:12px;display:flex;flex-wrap:wrap;gap:14px;align-items:center}
+  #qr svg{width:200px;height:200px;background:#fff;border-radius:10px;padding:8px;border:1.5px solid var(--line)}
   .out{font-size:14px;background:var(--bg);border-radius:8px;padding:10px;word-break:break-all;margin-top:10px}
   .msg{font-size:14px;margin-top:10px}
   .bad{color:#b3261e} .good{color:#1d6b39}
@@ -76,19 +79,23 @@
       <p style="margin-top:14px"><b>이 주소로 열면 공지가 함께 나옵니다.</b> <small>태블릿에서 열어 즐겨찾기(또는 홈 화면에 추가)해 두세요.</small></p>
       <div class="out" id="url"></div>
       <div class="row"><button class="btn" id="copy">주소 복사</button><a class="btn ghost" id="open">이 주소로 열기</a></div>
+      <div id="qr"><span id="qrImg"></span><small><b>다른 기기에서 열기</b><br>교실 패드·휴대폰 카메라로 이 QR 코드를 찍으면 같은 화면이 열립니다.<br>한 번 연 기기는 시트를 기억해서, 다음부터는 평소 주소나 즐겨찾기로 열어도 공지가 나옵니다.</small></div>
     </div>
   </div>
 
   <div class="card">
     <h2>알아둘 점</h2>
     <ul>
-      <li>켜 둔 화면은 낮 동안 10분마다 공지를 확인합니다. 시트를 고친 뒤 화면에 나오기까지 <b>최대 15분쯤</b> 걸릴 수 있고, 급하면 화면의 '새로고침'을 누르세요.</li>
-      <li>공지를 끄려면 주소에서 <b>&amp;notice=…</b> 부분을 지우고 열거나, 시트의 내용을 비우면 됩니다.</li>
+      <li>켜 둔 화면은 <b>7:30~16:30에는 5분마다</b> 공지를 확인합니다. 시트를 고친 뒤 화면에 나오기까지 <b>최대 7분쯤</b> 걸리고, 급하면 화면의 '새로고침'을 누르면 바로 반영됩니다.</li>
+      <li>이른 아침(6:00~7:30)과 늦은 오후(16:30~18:00)는 30분마다, 밤에는 확인하지 않습니다. 화면을 다시 켜면 바로 확인합니다.</li>
+      <li>공지를 잠깐 쉬려면 시트의 내용을 비우면 됩니다. 이 기기에서 공지 연결을 아예 끊으려면 아래 버튼을 누르세요.</li>
       <li>공지는 화면(주소)마다 따로 연결됩니다. 같은 시트를 여러 화면에 연결해도 되고, 교실마다 다른 시트를 써도 됩니다.</li>
     </ul>
-    <div class="row"><a class="btn ghost" href="/">← 돌아가기</a></div>
+    <div class="row"><a class="btn ghost" href="/">← 돌아가기</a><button class="btn ghost" id="off" hidden>이 기기에서 공지 끄기</button></div>
+    <div class="msg" id="offMsg"></div>
   </div>
 </div>
+<script src="/qrcode.js"></script>
 <script>
 const $ = id => document.getElementById(id);
 const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
@@ -131,6 +138,9 @@ async function check(){
       + (d.notices.length ? `<table><tr><th>공지</th><th>기간</th><th>오늘</th></tr>${d.notices.map(n => `<tr><td>${esc(n.text)}</td><td>${dateText(n)}</td><td>${on.includes(n) ? "표시" : "-"}</td></tr>`).join("")}</table>` : "");
     const url = dashUrl(id);
     $("url").textContent = url; $("open").href = url; $("result").hidden = false;
+    // QR 코드는 이 페이지 안에서 직접 그림 (주소를 다른 서비스로 보내지 않음)
+    try{ const q = qrcode(0, "M"); q.addData(url); q.make(); $("qrImg").innerHTML = q.createSvgTag({ cellSize: 4, margin: 2, scalable: true }); $("qr").hidden = false; }
+    catch(e){ $("qr").hidden = true; }
     if (!school?.id) $("msg").innerHTML += '<br><span class="bad">아직 학교를 고르지 않았어요. 주소를 연 뒤 학교를 고르면 공지가 함께 나옵니다.</span>';
   }catch(e){ $("msg").innerHTML = `<span class="bad">⚠️ ${esc(e.message)}</span>`; }
 }
@@ -141,8 +151,18 @@ $("copy").onclick = async () => {
   catch(e){ $("copy").textContent = "주소를 길게 눌러 복사해 주세요"; }
 };
 // 이미 연결된 시트가 있으면 채워 둠
-const cur = new URLSearchParams(get("opts") || "").get("notice");
-if (cur){ $("link").value = cur; check(); }
+const cur = get("notice") || new URLSearchParams(get("opts") || "").get("notice");
+if (cur){ $("link").value = cur; check(); $("off").hidden = false; }
+// 이 기기에서 공지 끄기: 기억한 시트를 지움 (시트 자체와 다른 기기는 그대로)
+$("off").onclick = () => {
+  try{
+    localStorage.removeItem("notice");
+    const q = new URLSearchParams(get("opts") || ""); q.delete("notice");
+    localStorage.setItem("opts", JSON.stringify([...q].map(([k, v]) => k + "=" + v).join("&")));
+  }catch(e){}
+  $("off").hidden = true; $("link").value = ""; $("result").hidden = true; $("preview").innerHTML = ""; $("msg").textContent = "";
+  $("offMsg").innerHTML = '<span class="good">이 기기의 공지 연결을 끊었어요.</span> 다시 연결하려면 위에 시트 링크를 붙여넣으세요.';
+};
 </script>
 </body>
 </html>

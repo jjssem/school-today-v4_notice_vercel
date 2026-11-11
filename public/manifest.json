@@ -1,6 +1,6 @@
 {
-  "name": "우리 학교 오늘",
-  "short_name": "학교 오늘",
+  "name": "오늘 어때",
+  "short_name": "오늘 어때",
   "description": "가까운 학교의 오늘·내일 급식과 날씨·미세먼지·기상특보",
   "lang": "ko",
   "scope": "/",
